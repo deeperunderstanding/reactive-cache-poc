@@ -17,7 +17,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer
 
 
 @Configuration
-class CoffeeConfiguration {
+class RedisConfig {
 
     @Bean
     @Primary
@@ -26,26 +26,14 @@ class CoffeeConfiguration {
     }
 
     @Bean
-    fun redisOperations(factory: ReactiveRedisConnectionFactory): ReactiveRedisOperations<String, Coffee> {
-        val serializer: Jackson2JsonRedisSerializer<Coffee> = Jackson2JsonRedisSerializer<Coffee>(Coffee::class.java)
+    fun redisOperations(factory: ReactiveRedisConnectionFactory): ReactiveRedisOperations<String, Customer> {
+        val serializer: Jackson2JsonRedisSerializer<Customer> = Jackson2JsonRedisSerializer<Customer>(Customer::class.java)
 
         serializer.setObjectMapper(jacksonObjectMapper())
 
-        val builder: RedisSerializationContextBuilder<String, Coffee> = RedisSerializationContext.newSerializationContext<String, Coffee>(StringRedisSerializer())
-        val context: RedisSerializationContext<String, Coffee> = builder.value(serializer).build()
-        return ReactiveRedisTemplate<String, Coffee>(factory, context)
+        val builder: RedisSerializationContextBuilder<String, Customer> = RedisSerializationContext.newSerializationContext<String, Customer>(StringRedisSerializer())
+        val context: RedisSerializationContext<String, Customer> = builder.value(serializer).build()
+        return ReactiveRedisTemplate<String, Customer>(factory, context)
     }
 
-
-//    @Bean
-//    @Primary
-//    final inline fun <K, reified V> genericRedisOperations(factory: ReactiveRedisConnectionFactory): ReactiveRedisOperations<K, V> {
-//        val serializer: Jackson2JsonRedisSerializer<V> = Jackson2JsonRedisSerializer<V>(V::class.java)
-//
-//        serializer.setObjectMapper(jacksonObjectMapper())
-//
-//        val builder: RedisSerializationContextBuilder<K, V> = RedisSerializationContext.newSerializationContext<K, V>(StringRedisSerializer())
-//        val context: RedisSerializationContext<K, V> = builder.value(serializer).build()
-//        return ReactiveRedisTemplate<K, V>(factory, context)
-//    }
 }

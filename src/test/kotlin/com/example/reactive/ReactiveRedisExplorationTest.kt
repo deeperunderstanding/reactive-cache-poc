@@ -4,9 +4,13 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.junit.AfterClass
 import org.junit.BeforeClass
 import org.junit.Test
+import org.springframework.cache.CacheManager
+import org.springframework.data.redis.cache.RedisCacheConfiguration
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.data.redis.core.ReactiveRedisTemplate
+import org.springframework.data.redis.core.ScanOptions
+import org.springframework.data.redis.listener.ReactiveRedisMessageListenerContainer
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer
 import org.springframework.data.redis.serializer.RedisSerializationContext
 import org.springframework.data.redis.serializer.StringRedisSerializer
@@ -32,6 +36,7 @@ class ReactiveRedisExplorationTest {
     }.build()
 
     val customerRedis = ReactiveRedisTemplate<String, Customer>(factory, context)
+
 
     @Test
     fun writingAndReadingReactiveRedis() {
@@ -65,6 +70,26 @@ class ReactiveRedisExplorationTest {
 
         StepVerifier.create(read)
                 .expectNext(Customer(1, "Danny"))
+                .verifyComplete()
+
+        customerRedis.scan(ScanOptions.scanOptions().match("*").build())
+
+    }
+
+    @Test //TODO how the hell does scan work?
+    fun scanningCanFetchAllKeys() {
+        val customers = listOf(
+                Customer(1, "Danny"),
+                Customer(2, "Stephan"),
+                Customer(3, "Thomas")
+        )
+
+        StepVerifier.create(Flux.fromIterable(customers).flatMap { customer: Customer ->
+            customerRedis.opsForValue().set(customer.id.toString(), customer)
+        }).verifyComplete()
+
+        StepVerifier.create(customerRedis.scan(ScanOptions.scanOptions().match("*").build()))
+                .expectNextCount(3)
                 .verifyComplete()
 
     }
