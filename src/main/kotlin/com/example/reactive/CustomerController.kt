@@ -13,4 +13,7 @@ class CustomerController(
     @GetMapping("/customer/{id}")
     fun getCustomerById(@PathVariable("id") id: Long) = customerService.customerById(id)
 
+    @GetMapping("/customer")
+    fun getCustomerById() = customerService.customers()
+
 }

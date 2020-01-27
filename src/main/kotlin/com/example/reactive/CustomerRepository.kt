@@ -20,7 +20,14 @@ class CustomerRepository {
     fun findById(id: Long): Customer? {
         logger.info("Customer repository was called with $id")
         Thread.sleep(3000) //its a BIG production table
+        logger.info("Returning value")
         return customers[id]
+    }
+
+    fun findAll() : List<Customer> {
+        logger.info("Customer repository was called for all Customers")
+        Thread.sleep(3000)
+        return customers.values.toList()
     }
 
 }

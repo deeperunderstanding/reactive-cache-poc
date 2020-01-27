@@ -18,6 +18,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import redis.embedded.RedisServer
+import java.time.Duration
 
 class ReactiveRedisExplorationTest {
 
@@ -37,15 +38,16 @@ class ReactiveRedisExplorationTest {
 
     val customerRedis = ReactiveRedisTemplate<String, Customer>(factory, context)
 
+    val customers = listOf(
+            Customer(1, "Danny"),
+            Customer(2, "Stephan"),
+            Customer(3, "Thomas")
+    )
 
     @Test
-    fun writingAndReadingReactiveRedis() {
+    fun writingAndReadingSingleValues() {
 
-        val customers = listOf(
-                Customer(1, "Danny"),
-                Customer(2, "Stephan"),
-                Customer(3, "Thomas")
-        )
+        customerRedis.connectionFactory.reactiveConnection.serverCommands().flushAll().block()
 
         val writing = Flux.fromIterable(customers).flatMap { customer: Customer ->
             customerRedis.opsForValue().set(customer.id.toString(), customer)
@@ -72,27 +74,55 @@ class ReactiveRedisExplorationTest {
                 .expectNext(Customer(1, "Danny"))
                 .verifyComplete()
 
-        customerRedis.scan(ScanOptions.scanOptions().match("*").build())
-
     }
 
-    @Test //TODO how the hell does scan work?
-    fun scanningCanFetchAllKeys() {
-        val customers = listOf(
-                Customer(1, "Danny"),
-                Customer(2, "Stephan"),
-                Customer(3, "Thomas")
-        )
+    @Test
+    fun wrtitingAndReadingListOfValues() {
 
-        StepVerifier.create(Flux.fromIterable(customers).flatMap { customer: Customer ->
-            customerRedis.opsForValue().set(customer.id.toString(), customer)
-        }).verifyComplete()
+        StepVerifier.create(customerRedis.opsForList().leftPushAll("customers", customers))
+                .expectNext(3L)
+                .verifyComplete()
 
-        StepVerifier.create(customerRedis.scan(ScanOptions.scanOptions().match("*").build()))
+
+        StepVerifier.create(customerRedis.opsForList().range("customers", 0, -1))
+                .thenConsumeWhile { customer -> customers.contains(customer) }
+                .verifyComplete()
+
+        StepVerifier.create(customerRedis.opsForList().range("customers", 0, -1))
                 .expectNextCount(3)
                 .verifyComplete()
 
+        customerRedis.expire("customers", Duration.ofMinutes(10))
     }
+
+    @Test
+    fun expireRemovesEntriesAfterSomeTime() {
+
+        val writing = customerRedis.opsForValue().set("1", Customer(1, "Danny"))
+                .flatMap { customerRedis.expire("1", Duration.ofSeconds(1)) }
+
+        StepVerifier.create(writing).expectNext(true).verifyComplete()
+
+        Thread.sleep(2000)
+
+        val read = customerRedis.opsForValue()["1"]
+
+        StepVerifier.create(read).expectNextCount(0).verifyComplete()
+
+    }
+
+//    @Test //TODO how the hell does scan work?
+//    fun scanningCanFetchAllKeys() {
+//
+//        StepVerifier.create(Flux.fromIterable(customers).flatMap { customer: Customer ->
+//            customerRedis.opsForValue().set(customer.id.toString(), customer)
+//        }).verifyComplete()
+//
+//        StepVerifier.create(customerRedis.scan(ScanOptions.scanOptions().match("*").build()))
+//                .expectNextCount(3)
+//                .verifyComplete()
+//
+//    }
 
     companion object {
         val redisPort = 6381
